@@ -89,9 +89,18 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
             }
         }
 
+        for (PowerUp powerUp : engine.getPowerUps()) {
+            if (powerUp.isActive()) {
+                drawPowerUp(g2d, powerUp);
+            }
+        }
+
         for (Tank tank : engine.getTanks()) {
             if (tank.isAlive()) {
                 drawHealthBar(g2d, tank);
+                if (tank.isPlayer() && tank.isShieldActive()) {
+                    drawShieldEffect(g2d, tank);
+                }
             }
         }
 
@@ -238,6 +247,66 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         g2d.fillRect(x + 1, y + 1, (int)((width - 2) * ratio), height - 2);
     }
 
+    private void drawPowerUp(Graphics2D g2d, PowerUp powerUp) {
+        int x = powerUp.getX();
+        int y = powerUp.getY();
+        int size = PowerUp.SIZE;
+        long elapsed = System.currentTimeMillis() % 1000;
+        float pulse = 0.8f + 0.2f * (float) Math.sin(elapsed * Math.PI * 2 / 1000);
+
+        switch (powerUp.getType()) {
+            case STAR:
+                g2d.setColor(new Color(255, 215, 0));
+                drawStar(g2d, x + size / 2, y + size / 2, (int)(size / 2 * pulse), 5);
+                break;
+            case SHIELD:
+                g2d.setColor(new Color(0, 191, 255));
+                g2d.fillOval(x + 2, y + 2, size - 4, size - 4);
+                g2d.setColor(new Color(135, 206, 250));
+                g2d.fillOval(x + 6, y + 6, size - 12, size - 12);
+                g2d.setColor(Color.WHITE);
+                g2d.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
+                FontMetrics fm = g2d.getFontMetrics();
+                String s = "S";
+                g2d.drawString(s, x + size / 2 - fm.stringWidth(s) / 2, y + size / 2 + fm.getAscent() / 2 - 2);
+                break;
+            case BOMB:
+                g2d.setColor(new Color(255, 69, 0));
+                g2d.fillOval(x + 2, y + 4, size - 4, size - 6);
+                g2d.setColor(new Color(255, 140, 0));
+                g2d.fillRect(x + size / 2 - 2, y, 4, 8);
+                g2d.setColor(new Color(255, 215, 0));
+                g2d.fillOval(x + size / 2 - 3, y - 4, 6, 6);
+                break;
+        }
+    }
+
+    private void drawStar(Graphics2D g2d, int cx, int cy, int r, int points) {
+        int[] xPoints = new int[points * 2];
+        int[] yPoints = new int[points * 2];
+        for (int i = 0; i < points * 2; i++) {
+            double angle = i * Math.PI / points - Math.PI / 2;
+            int radius = i % 2 == 0 ? r : r / 2;
+            xPoints[i] = cx + (int) (Math.cos(angle) * radius);
+            yPoints[i] = cy + (int) (Math.sin(angle) * radius);
+        }
+        g2d.fillPolygon(xPoints, yPoints, points * 2);
+    }
+
+    private void drawShieldEffect(Graphics2D g2d, Tank tank) {
+        int x = tank.getX();
+        int y = tank.getY();
+        int size = Tank.SIZE;
+        long remaining = tank.getShieldEndTime() - System.currentTimeMillis();
+        float alpha = remaining > 2000 ? 0.6f : 0.3f + 0.3f * (float) Math.sin(System.currentTimeMillis() * 0.02);
+
+        g2d.setColor(new Color(0, 191, 255, (int)(alpha * 255)));
+        g2d.setStroke(new BasicStroke(3));
+        g2d.drawOval(x - 4, y - 4, size + 8, size + 8);
+        g2d.setColor(new Color(135, 206, 250, (int)(alpha * 150)));
+        g2d.fillOval(x - 2, y - 2, size + 4, size + 4);
+    }
+
     private void drawHUD(Graphics2D g2d) {
         g2d.setColor(Color.WHITE);
         g2d.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
@@ -245,14 +314,21 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         g2d.drawString("关卡: " + engine.getLevel(), 120, 25);
         g2d.drawString("敌人: " + engine.getEnemiesRemaining(), 220, 25);
 
-        int xOffset = getWidth() - 200;
+        int xOffset = getWidth() - 350;
         for (Tank player : engine.getPlayers()) {
             String label = engine.getMode() == GameEngine.GameMode.TWO_PLAYER ?
                     "P" + player.getPlayerId() : "生命";
             g2d.setColor(player.getColor());
             g2d.drawString(label + ": " + player.getHealth() + "/" + player.getMaxHealth(),
                     xOffset, 25);
-            xOffset += 100;
+            String firepower = "火力: " + player.getFirepower();
+            g2d.drawString(firepower, xOffset, 50);
+            if (player.isShieldActive()) {
+                long remaining = (player.getShieldEndTime() - System.currentTimeMillis()) / 1000;
+                g2d.setColor(new Color(0, 191, 255));
+                g2d.drawString("护盾: " + remaining + "s", xOffset, 75);
+            }
+            xOffset += 170;
         }
 
         g2d.setColor(Color.GRAY);

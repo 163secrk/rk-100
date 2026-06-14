@@ -13,6 +13,7 @@ public class GameEngine {
     private List<Bullet> bullets;
     private List<Tank> players;
     private List<Tank> enemies;
+    private List<PowerUp> powerUps;
     private boolean gameOver;
     private boolean victory;
     private int score;
@@ -36,6 +37,7 @@ public class GameEngine {
         this.bullets = new ArrayList<>();
         this.players = new ArrayList<>();
         this.enemies = new ArrayList<>();
+        this.powerUps = new ArrayList<>();
         this.random = new Random();
         this.maxEnemiesOnScreen = 4;
         this.enemySpawnInterval = 3000;
@@ -52,6 +54,7 @@ public class GameEngine {
         bullets.clear();
         players.clear();
         enemies.clear();
+        powerUps.clear();
 
         Tank player1 = new Tank(map.getPlayer1Spawn()[0], map.getPlayer1Spawn()[1], true, 1);
         players.add(player1);
@@ -83,9 +86,14 @@ public class GameEngine {
             }
         }
 
+        for (PowerUp powerUp : powerUps) {
+            powerUp.update();
+        }
+
         updateEnemyAI();
         spawnEnemies();
         checkCollisions();
+        checkPowerUpPickup();
         cleanup();
         checkGameEnd();
     }
@@ -118,9 +126,9 @@ public class GameEngine {
                 shootChance = 10;
             }
             if (random.nextInt(100) < shootChance) {
-                Bullet bullet = enemy.shoot();
-                if (bullet != null) {
-                    bullets.add(bullet);
+                List<Bullet> newBullets = enemy.shoot();
+                if (newBullets != null) {
+                    bullets.addAll(newBullets);
                 }
             }
         }
@@ -209,6 +217,7 @@ public class GameEngine {
         if (enemies.size() >= maxEnemiesOnScreen) return;
 
         List<Tank> spawnPoints = map.getEnemySpawnPoints();
+        Tank enemy;
         if (spawnPoints.isEmpty()) {
             int[] spawnPositions = {
                     map.getWidth() / 4, 50,
@@ -216,15 +225,27 @@ public class GameEngine {
                     map.getWidth() * 3 / 4, 50
             };
             int idx = random.nextInt(3) * 2;
-            Tank enemy = new Tank(spawnPositions[idx], spawnPositions[idx + 1], false, 0);
+            enemy = new Tank(spawnPositions[idx], spawnPositions[idx + 1], false, 0);
             enemies.add(enemy);
             tanks.add(enemy);
         } else {
             Tank spawn = spawnPoints.get(random.nextInt(spawnPoints.size()));
-            Tank enemy = new Tank(spawn.getX(), spawn.getY(), false, 0);
+            enemy = new Tank(spawn.getX(), spawn.getY(), false, 0);
             enemies.add(enemy);
             tanks.add(enemy);
         }
+
+        int typeRoll = random.nextInt(100);
+        if (typeRoll < 10) {
+            enemy.setEnemyType(Tank.EnemyType.SPECIAL_STAR);
+        } else if (typeRoll < 20) {
+            enemy.setEnemyType(Tank.EnemyType.SPECIAL_SHIELD);
+        } else if (typeRoll < 30) {
+            enemy.setEnemyType(Tank.EnemyType.SPECIAL_BOMB);
+        } else {
+            enemy.setEnemyType(Tank.EnemyType.NORMAL);
+        }
+
         enemiesRemaining--;
         lastEnemySpawn = now;
     }
@@ -295,6 +316,7 @@ public class GameEngine {
                         } else {
                             enemiesKilled++;
                             score += 100;
+                            dropPowerUp(tank);
                         }
                     }
                     break;
@@ -303,10 +325,70 @@ public class GameEngine {
         }
     }
 
+    private void dropPowerUp(Tank enemy) {
+        Tank.EnemyType type = enemy.getEnemyType();
+        PowerUpType powerUpType = null;
+        switch (type) {
+            case SPECIAL_STAR:
+                powerUpType = PowerUpType.STAR;
+                break;
+            case SPECIAL_SHIELD:
+                powerUpType = PowerUpType.SHIELD;
+                break;
+            case SPECIAL_BOMB:
+                powerUpType = PowerUpType.BOMB;
+                break;
+            default:
+                return;
+        }
+        int px = enemy.getX() + Tank.SIZE / 2 - PowerUp.SIZE / 2;
+        int py = enemy.getY() + Tank.SIZE / 2 - PowerUp.SIZE / 2;
+        powerUps.add(new PowerUp(px, py, powerUpType));
+    }
+
+    private void checkPowerUpPickup() {
+        for (Tank player : players) {
+            if (!player.isAlive()) continue;
+            Rectangle playerRect = new Rectangle(player.getX(), player.getY(), Tank.SIZE, Tank.SIZE);
+            for (PowerUp powerUp : powerUps) {
+                if (!powerUp.isActive()) continue;
+                Rectangle powerUpRect = powerUp.getBounds();
+                if (playerRect.intersects(powerUpRect)) {
+                    applyPowerUp(player, powerUp);
+                    powerUp.setActive(false);
+                }
+            }
+        }
+    }
+
+    private void applyPowerUp(Tank player, PowerUp powerUp) {
+        switch (powerUp.getType()) {
+            case STAR:
+                player.increaseFirepower();
+                score += 50;
+                break;
+            case SHIELD:
+                player.activateShield(8000);
+                score += 50;
+                break;
+            case BOMB:
+                for (Tank enemy : enemies) {
+                    if (enemy.isAlive()) {
+                        enemy.setAlive(false);
+                        enemiesKilled++;
+                        score += 100;
+                    }
+                }
+                bullets.clear();
+                break;
+        }
+    }
+
     private void cleanup() {
         bullets.removeIf(b -> !b.isActive());
         tanks.removeIf(t -> !t.isAlive());
         enemies.removeIf(t -> !t.isAlive());
+        powerUps.removeIf(p -> !p.isActive());
     }
 
     private void checkGameEnd() {
@@ -328,9 +410,9 @@ public class GameEngine {
     public void playerShoot(int playerId) {
         for (Tank player : players) {
             if (player.getPlayerId() == playerId && player.isAlive()) {
-                Bullet bullet = player.shoot();
-                if (bullet != null) {
-                    bullets.add(bullet);
+                List<Bullet> newBullets = player.shoot();
+                if (newBullets != null) {
+                    bullets.addAll(newBullets);
                 }
             }
         }
@@ -352,6 +434,7 @@ public class GameEngine {
     public List<Bullet> getBullets() { return bullets; }
     public List<Tank> getPlayers() { return players; }
     public List<Tank> getEnemies() { return enemies; }
+    public List<PowerUp> getPowerUps() { return powerUps; }
     public boolean isGameOver() { return gameOver; }
     public boolean isVictory() { return victory; }
     public int getScore() { return score; }

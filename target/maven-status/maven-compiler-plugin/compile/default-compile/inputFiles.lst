@@ -5,6 +5,8 @@ D:\data\projects\bz-6\repos\rk-100\src\main\java\com\tankbattle\model\Direction.
 D:\data\projects\bz-6\repos\rk-100\src\main\java\com\tankbattle\model\GameMap.java
 D:\data\projects\bz-6\repos\rk-100\src\main\java\com\tankbattle\model\Obstacle.java
 D:\data\projects\bz-6\repos\rk-100\src\main\java\com\tankbattle\model\ObstacleType.java
+D:\data\projects\bz-6\repos\rk-100\src\main\java\com\tankbattle\model\PowerUp.java
+D:\data\projects\bz-6\repos\rk-100\src\main\java\com\tankbattle\model\PowerUpType.java
 D:\data\projects\bz-6\repos\rk-100\src\main\java\com\tankbattle\model\Tank.java
 D:\data\projects\bz-6\repos\rk-100\src\main\java\com\tankbattle\ui\GamePanel.java
 D:\data\projects\bz-6\repos\rk-100\src\main\java\com\tankbattle\ui\MainFrame.java

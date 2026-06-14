@@ -1,9 +1,5 @@
-com\tankbattle\model\Bullet$1.class
-com\tankbattle\model\Tank.class
-com\tankbattle\ui\MenuPanel$1.class
 com\tankbattle\ui\GamePanel.class
 com\tankbattle\model\Direction.class
-com\tankbattle\ui\MapEditorPanel$2.class
 com\tankbattle\ui\MenuPanel$MenuListener.class
 com\tankbattle\model\ObstacleType.class
 com\tankbattle\ui\MainFrame.class
@@ -13,11 +9,15 @@ com\tankbattle\engine\GameEngine.class
 com\tankbattle\Main.class
 com\tankbattle\model\Bullet.class
 com\tankbattle\ui\GamePanel$GameUIListener.class
-com\tankbattle\engine\GameEngine$1.class
 com\tankbattle\model\GameMap.class
 com\tankbattle\ui\MapEditorPanel$1.class
 com\tankbattle\model\Obstacle.class
 com\tankbattle\ui\MapEditorPanel.class
 com\tankbattle\ui\GamePanel$1.class
-com\tankbattle\model\GameMap$1.class
 com\tankbattle\model\Tank$1.class
+com\tankbattle\model\Bullet$1.class
+com\tankbattle\model\Tank.class
+com\tankbattle\ui\MenuPanel$1.class
+com\tankbattle\ui\MapEditorPanel$2.class
+com\tankbattle\engine\GameEngine$1.class
+com\tankbattle\model\GameMap$1.class
