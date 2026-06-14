@@ -24,27 +24,38 @@ public class GameEngine {
     private long lastEnemySpawn;
     private int enemySpawnInterval;
     private Random random;
+    private long randomSeed;
     private GameMode mode;
+    private long gameTime;
+    private static final int FRAME_DURATION = 16;
+    private boolean replayMode;
 
     public enum GameMode {
         SINGLE_PLAYER, TWO_PLAYER
     }
 
     public GameEngine(GameMap map, GameMode mode) {
+        this(map, mode, System.currentTimeMillis());
+    }
+
+    public GameEngine(GameMap map, GameMode mode, long randomSeed) {
         this.map = map;
         this.mode = mode;
+        this.randomSeed = randomSeed;
         this.tanks = new ArrayList<>();
         this.bullets = new ArrayList<>();
         this.players = new ArrayList<>();
         this.enemies = new ArrayList<>();
         this.powerUps = new ArrayList<>();
-        this.random = new Random();
+        this.random = new Random(randomSeed);
         this.maxEnemiesOnScreen = 4;
         this.enemySpawnInterval = 3000;
         this.gameOver = false;
         this.victory = false;
         this.score = 0;
         this.level = 1;
+        this.gameTime = 0;
+        this.replayMode = false;
         initGame();
     }
 
@@ -79,6 +90,8 @@ public class GameEngine {
     public void update() {
         if (gameOver) return;
 
+        gameTime += FRAME_DURATION;
+
         for (Bullet bullet : bullets) {
             bullet.update();
             if (bullet.isOutOfBounds(map.getWidth(), map.getHeight())) {
@@ -87,7 +100,7 @@ public class GameEngine {
         }
 
         for (PowerUp powerUp : powerUps) {
-            powerUp.update();
+            powerUp.update(gameTime);
         }
 
         updateEnemyAI();
@@ -126,7 +139,7 @@ public class GameEngine {
                 shootChance = 10;
             }
             if (random.nextInt(100) < shootChance) {
-                List<Bullet> newBullets = enemy.shoot();
+                List<Bullet> newBullets = enemy.shoot(gameTime);
                 if (newBullets != null) {
                     bullets.addAll(newBullets);
                 }
@@ -212,8 +225,7 @@ public class GameEngine {
 
     private void spawnEnemies() {
         if (enemiesRemaining <= 0) return;
-        long now = System.currentTimeMillis();
-        if (now - lastEnemySpawn < enemySpawnInterval) return;
+        if (gameTime - lastEnemySpawn < enemySpawnInterval) return;
         if (enemies.size() >= maxEnemiesOnScreen) return;
 
         List<Tank> spawnPoints = map.getEnemySpawnPoints();
@@ -252,7 +264,7 @@ public class GameEngine {
         enemy.setShotCooldown(enemyShotCooldown);
 
         enemiesRemaining--;
-        lastEnemySpawn = now;
+        lastEnemySpawn = gameTime;
     }
 
     private void checkCollisions() {
@@ -302,7 +314,7 @@ public class GameEngine {
                 Rectangle tankRect = new Rectangle(tank.getX(), tank.getY(), Tank.SIZE, Tank.SIZE);
                 if (bulletRect.intersects(tankRect)) {
                     bullet.setActive(false);
-                    tank.takeDamage();
+                    tank.takeDamage(gameTime);
                     if (!tank.isAlive()) {
                         if (tank.isPlayer()) {
                             if (mode == GameMode.SINGLE_PLAYER) {
@@ -348,7 +360,7 @@ public class GameEngine {
         }
         int px = enemy.getX() + Tank.SIZE / 2 - PowerUp.SIZE / 2;
         int py = enemy.getY() + Tank.SIZE / 2 - PowerUp.SIZE / 2;
-        powerUps.add(new PowerUp(px, py, powerUpType));
+        powerUps.add(new PowerUp(px, py, powerUpType, gameTime));
     }
 
     private void checkPowerUpPickup() {
@@ -373,7 +385,7 @@ public class GameEngine {
                 score += 50;
                 break;
             case SHIELD:
-                player.activateShield(8000);
+                player.activateShield(8000, gameTime);
                 score += 50;
                 break;
             case BOMB:
@@ -415,7 +427,7 @@ public class GameEngine {
     public void playerShoot(int playerId) {
         for (Tank player : players) {
             if (player.getPlayerId() == playerId && player.isAlive()) {
-                List<Bullet> newBullets = player.shoot();
+                List<Bullet> newBullets = player.shoot(gameTime);
                 if (newBullets != null) {
                     bullets.addAll(newBullets);
                 }
@@ -431,6 +443,8 @@ public class GameEngine {
     public void restart() {
         level = 1;
         score = 0;
+        gameTime = 0;
+        random = new Random(randomSeed);
         initGame();
     }
 
@@ -446,4 +460,9 @@ public class GameEngine {
     public int getLevel() { return level; }
     public int getEnemiesRemaining() { return enemiesRemaining + enemies.size(); }
     public GameMode getMode() { return mode; }
+    public long getRandomSeed() { return randomSeed; }
+    public long getGameTime() { return gameTime; }
+    public boolean isReplayMode() { return replayMode; }
+    public void setReplayMode(boolean replayMode) { this.replayMode = replayMode; }
+    public static int getFrameDuration() { return FRAME_DURATION; }
 }

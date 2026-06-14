@@ -11,18 +11,25 @@ public class PowerUp {
     public static final int SIZE = 28;
 
     public PowerUp(int x, int y, PowerUpType type) {
+        this(x, y, type, System.currentTimeMillis());
+    }
+
+    public PowerUp(int x, int y, PowerUpType type, long spawnTime) {
         this.x = x;
         this.y = y;
         this.type = type;
         this.active = true;
-        this.spawnTime = System.currentTimeMillis();
+        this.spawnTime = spawnTime;
         this.lifetime = 10000;
     }
 
     public void update() {
+        update(System.currentTimeMillis());
+    }
+
+    public void update(long currentTime) {
         if (!active) return;
-        long now = System.currentTimeMillis();
-        if (now - spawnTime > lifetime) {
+        if (currentTime - spawnTime > lifetime) {
             active = false;
         }
     }

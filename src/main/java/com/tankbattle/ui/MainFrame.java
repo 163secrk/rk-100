@@ -3,6 +3,8 @@ package com.tankbattle.ui;
 import com.tankbattle.engine.GameEngine;
 import com.tankbattle.engine.HighScoreManager;
 import com.tankbattle.model.GameMap;
+import com.tankbattle.model.GameReplay;
+import com.tankbattle.model.ScoreRecord;
 
 import javax.swing.*;
 import java.awt.*;
@@ -11,12 +13,14 @@ import java.awt.event.KeyListener;
 import java.io.File;
 import java.io.IOException;
 
-public class MainFrame extends JFrame implements MenuPanel.MenuListener, GamePanel.GameUIListener, KeyListener {
+public class MainFrame extends JFrame implements MenuPanel.MenuListener, GamePanel.GameUIListener,
+        LeaderboardPanel.LeaderboardListener, KeyListener {
     private CardLayout cardLayout;
     private JPanel mainPanel;
     private MenuPanel menuPanel;
     private GamePanel gamePanel;
     private MapEditorPanel mapEditorPanel;
+    private LeaderboardPanel leaderboardPanel;
     private GameEngine engine;
     private GameMap currentMap;
     private HighScoreManager highScoreManager;
@@ -45,9 +49,11 @@ public class MainFrame extends JFrame implements MenuPanel.MenuListener, GamePan
 
         menuPanel = new MenuPanel(this);
         mapEditorPanel = new MapEditorPanel(this);
+        leaderboardPanel = new LeaderboardPanel(highScoreManager, this);
 
         mainPanel.add(menuPanel, "MENU");
         mainPanel.add(mapEditorPanel, "EDITOR");
+        mainPanel.add(leaderboardPanel, "LEADERBOARD");
 
         setContentPane(mainPanel);
         pack();
@@ -197,6 +203,13 @@ public class MainFrame extends JFrame implements MenuPanel.MenuListener, GamePan
     }
 
     @Override
+    public void onLeaderboard() {
+        leaderboardPanel.refreshData();
+        cardLayout.show(mainPanel, "LEADERBOARD");
+        leaderboardPanel.requestFocus();
+    }
+
+    @Override
     public void onExit() {
         System.exit(0);
     }
@@ -217,8 +230,59 @@ public class MainFrame extends JFrame implements MenuPanel.MenuListener, GamePan
                 mainPanel.remove(gamePanel);
             }
             gamePanel = new GamePanel(engine, this);
+            gamePanel.setMapFile(mapFile);
             gamePanel.setPreferredSize(new Dimension(mapWidth + sidePanelWidth, mapHeight));
             gamePanel.setHighScore(highScoreManager.getHighScore(), highScoreManager.getHighLevel());
+            gamePanel.startRecording();
+            mainPanel.add(gamePanel, "GAME");
+            cardLayout.show(mainPanel, "GAME");
+            gamePanel.requestFocus();
+            pack();
+            setSize(mapWidth + sidePanelWidth + 20, mapHeight + 60);
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(this, "加载地图失败: " + e.getMessage(), "错误", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
+        }
+    }
+
+    private void startReplay(ScoreRecord record) {
+        GameReplay replay = highScoreManager.loadReplay(record.getReplayFileName());
+        if (replay == null) {
+            JOptionPane.showMessageDialog(this, "回放文件不存在或已损坏", "错误", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        try {
+            String mapFile = replay.getMapFile();
+            if (mapFile == null || mapFile.isEmpty()) {
+                mapFile = "maps/level1.txt";
+            }
+            File file = new File(mapFile);
+            if (!file.exists()) {
+                JOptionPane.showMessageDialog(this, "地图文件不存在: " + mapFile, "错误", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            currentMap = new GameMap(mapWidth, mapHeight);
+            currentMap.loadFromFile(mapFile);
+
+            GameEngine.GameMode mode = replay.getGameMode() == 0 ?
+                    GameEngine.GameMode.SINGLE_PLAYER : GameEngine.GameMode.TWO_PLAYER;
+
+            engine = new GameEngine(currentMap, mode, replay.getRandomSeed());
+            engine.setReplayMode(true);
+
+            if (gamePanel != null) {
+                gamePanel.stop();
+                mainPanel.remove(gamePanel);
+            }
+
+            gamePanel = new GamePanel(engine, this);
+            gamePanel.setMapFile(mapFile);
+            gamePanel.setPreferredSize(new Dimension(mapWidth + sidePanelWidth, mapHeight));
+            gamePanel.setHighScore(highScoreManager.getHighScore(), highScoreManager.getHighLevel());
+            gamePanel.startReplay(replay);
+
             mainPanel.add(gamePanel, "GAME");
             cardLayout.show(mainPanel, "GAME");
             gamePanel.requestFocus();
@@ -266,7 +330,36 @@ public class MainFrame extends JFrame implements MenuPanel.MenuListener, GamePan
 
     @Override
     public void onReturnToMenu() {
+        if (gamePanel != null && gamePanel.isReplaying()) {
+            gamePanel.stopReplay();
+        }
         returnToMenu();
+    }
+
+    @Override
+    public void onSaveScore(String playerName, int score, int level, GameReplay replay) {
+        highScoreManager.addScore(playerName, score, level, replay);
+        if (gamePanel != null) {
+            gamePanel.setHighScore(highScoreManager.getHighScore(), highScoreManager.getHighLevel());
+        }
+    }
+
+    @Override
+    public void onReplayEnd() {
+    }
+
+    @Override
+    public void onBack() {
+        cardLayout.show(mainPanel, "MENU");
+    }
+
+    @Override
+    public void onReplay(ScoreRecord record) {
+        if (record.getReplayFileName() == null || record.getReplayFileName().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "该记录没有回放数据", "提示", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        startReplay(record);
     }
 
     @Override

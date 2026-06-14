@@ -93,10 +93,13 @@ public class Tank {
     }
 
     public List<Bullet> shoot() {
+        return shoot(System.currentTimeMillis());
+    }
+
+    public List<Bullet> shoot(long currentTime) {
         if (!alive) return null;
-        long now = System.currentTimeMillis();
-        if (now - lastShotTime < shotCooldown) return null;
-        lastShotTime = now;
+        if (currentTime - lastShotTime < shotCooldown) return null;
+        lastShotTime = currentTime;
         List<Bullet> bullets = new ArrayList<>();
         int bx = x + SIZE / 2 - Bullet.SIZE / 2;
         int by = y + SIZE / 2 - Bullet.SIZE / 2;
@@ -161,7 +164,11 @@ public class Tank {
     }
 
     public void takeDamage() {
-        if (shielded && isShieldActive()) return;
+        takeDamage(System.currentTimeMillis());
+    }
+
+    public void takeDamage(long currentTime) {
+        if (shielded && isShieldActive(currentTime)) return;
         health--;
         if (health <= 0) {
             alive = false;
@@ -169,9 +176,12 @@ public class Tank {
     }
 
     public boolean isShieldActive() {
+        return isShieldActive(System.currentTimeMillis());
+    }
+
+    public boolean isShieldActive(long currentTime) {
         if (!shielded) return false;
-        long now = System.currentTimeMillis();
-        if (now > shieldEndTime) {
+        if (currentTime > shieldEndTime) {
             shielded = false;
             return false;
         }
@@ -179,8 +189,12 @@ public class Tank {
     }
 
     public void activateShield(long duration) {
+        activateShield(duration, System.currentTimeMillis());
+    }
+
+    public void activateShield(long duration, long currentTime) {
         this.shielded = true;
-        this.shieldEndTime = System.currentTimeMillis() + duration;
+        this.shieldEndTime = currentTime + duration;
     }
 
     public void increaseFirepower() {

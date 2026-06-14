@@ -11,6 +11,7 @@ public class MenuPanel extends JPanel {
     private JButton twoPlayerBtn;
     private JButton mapEditorBtn;
     private JButton selectMapBtn;
+    private JButton leaderboardBtn;
     private JButton exitBtn;
     private JLabel titleLabel;
     private JLabel subtitleLabel;
@@ -22,6 +23,7 @@ public class MenuPanel extends JPanel {
         void onSinglePlayer(String mapFile);
         void onTwoPlayer(String mapFile);
         void onMapEditor();
+        void onLeaderboard();
         void onExit();
     }
 
@@ -77,29 +79,36 @@ public class MenuPanel extends JPanel {
         gbc.gridy = 5;
         add(mapEditorBtn, gbc);
 
+        leaderboardBtn = createMenuButton("计分排行榜", "查看历史成绩记录");
+        leaderboardBtn.addActionListener(e -> {
+            if (listener != null) listener.onLeaderboard();
+        });
+        gbc.gridy = 6;
+        add(leaderboardBtn, gbc);
+
         selectMapBtn = createMenuButton("选择地图", "选择游戏地图");
         selectMapBtn.addActionListener(e -> selectMap());
-        gbc.gridy = 6;
+        gbc.gridy = 7;
         add(selectMapBtn, gbc);
 
         exitBtn = createMenuButton("退出游戏", "退出程序");
         exitBtn.addActionListener(e -> {
             if (listener != null) listener.onExit();
         });
-        gbc.gridy = 7;
+        gbc.gridy = 8;
         add(exitBtn, gbc);
 
         selectedMapLabel = new JLabel("当前地图: " + getMapDisplayName(selectedMap));
         selectedMapLabel.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 14));
         selectedMapLabel.setForeground(Color.LIGHT_GRAY);
-        gbc.gridy = 8;
+        gbc.gridy = 9;
         gbc.insets = new Insets(30, 10, 10, 10);
         add(selectedMapLabel, gbc);
 
         JLabel controlsLabel = new JLabel("游戏中按 P 暂停 | R 重新开始 | ESC 返回菜单");
         controlsLabel.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
         controlsLabel.setForeground(Color.GRAY);
-        gbc.gridy = 9;
+        gbc.gridy = 10;
         gbc.insets = new Insets(5, 10, 10, 10);
         add(controlsLabel, gbc);
     }

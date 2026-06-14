@@ -22,10 +22,19 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
     private long transitionStartTime;
     private static final int TRANSITION_DELAY = 3000;
 
+    private boolean recording;
+    private boolean replaying;
+    private GameReplay currentReplay;
+    private int replayFrameIndex;
+    private boolean nameInputShown;
+    private String mapFile;
+
     public interface GameUIListener {
         void onGameOver(boolean victory, int score, int level);
         void onScoreUpdate(int score);
         void onReturnToMenu();
+        void onSaveScore(String playerName, int score, int level, GameReplay replay);
+        void onReplayEnd();
     }
 
     public GamePanel(GameEngine engine, GameUIListener listener) {
@@ -40,11 +49,68 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         this.highLevel = 1;
         this.levelTransition = false;
         this.transitionStartTime = 0;
+        this.recording = false;
+        this.replaying = false;
+        this.currentReplay = null;
+        this.replayFrameIndex = 0;
+        this.nameInputShown = false;
+        this.mapFile = "";
         setBackground(Color.BLACK);
         setFocusable(true);
         addKeyListener(this);
         timer = new Timer(16, this);
         timer.start();
+    }
+
+    public void setMapFile(String mapFile) {
+        this.mapFile = mapFile;
+    }
+
+    public String getMapFile() {
+        return mapFile;
+    }
+
+    public void startRecording() {
+        if (engine != null) {
+            currentReplay = new GameReplay(
+                    engine.getRandomSeed(),
+                    mapFile,
+                    engine.getMode() == GameEngine.GameMode.SINGLE_PLAYER ? 0 : 1
+            );
+            recording = true;
+        }
+    }
+
+    public void stopRecording() {
+        recording = false;
+    }
+
+    public GameReplay getCurrentReplay() {
+        return currentReplay;
+    }
+
+    public void startReplay(GameReplay replay) {
+        if (replay == null) return;
+        this.currentReplay = replay;
+        this.replaying = true;
+        this.recording = false;
+        this.replayFrameIndex = 0;
+        this.nameInputShown = false;
+        this.paused = false;
+        this.levelTransition = false;
+    }
+
+    public void stopReplay() {
+        replaying = false;
+        replayFrameIndex = 0;
+    }
+
+    public boolean isReplaying() {
+        return replaying;
+    }
+
+    public boolean isRecording() {
+        return recording;
     }
 
     public void setEngine(GameEngine engine) {
@@ -345,6 +411,17 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         g2d.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
         g2d.drawString("得分: " + engine.getScore(), 10, 25);
 
+        if (replaying) {
+            g2d.setColor(new Color(100, 200, 255));
+            g2d.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
+            String replayText = "▶ 回放中 (" + replayFrameIndex + "/" + currentReplay.getTotalFrames() + "帧)";
+            g2d.drawString(replayText, 10, 50);
+        } else if (recording) {
+            g2d.setColor(Color.RED);
+            g2d.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
+            g2d.drawString("● 录制中", 10, 50);
+        }
+
         g2d.setColor(Color.GRAY);
         g2d.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
         g2d.drawString("P:暂停  R:重新开始  ESC:返回菜单", gameWidth - 230, getHeight() - 10);
@@ -515,9 +592,9 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         g2d.fillRect(0, 0, getWidth(), getHeight());
 
         g2d.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 56));
-        String text = engine.isVictory() ? "胜利！" : "游戏结束";
+        String text = replaying ? "回放结束" : (engine.isVictory() ? "胜利！" : "游戏结束");
         FontMetrics fm = g2d.getFontMetrics();
-        g2d.setColor(engine.isVictory() ? Color.YELLOW : Color.RED);
+        g2d.setColor(replaying ? new Color(100, 200, 255) : (engine.isVictory() ? Color.YELLOW : Color.RED));
         g2d.drawString(text, (getWidth() - fm.stringWidth(text)) / 2, getHeight() / 2 - 40);
 
         g2d.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 24));
@@ -530,11 +607,25 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         fm = g2d.getFontMetrics();
         g2d.drawString(text, (getWidth() - fm.stringWidth(text)) / 2, getHeight() / 2 + 60);
 
-        g2d.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 18));
-        text = "按 R 重新开始 | 按 ESC 返回菜单";
-        fm = g2d.getFontMetrics();
-        g2d.setColor(Color.GRAY);
-        g2d.drawString(text, (getWidth() - fm.stringWidth(text)) / 2, getHeight() / 2 + 110);
+        if (replaying) {
+            g2d.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 18));
+            text = "按 R 重新回放 | 按 ESC 返回排行榜";
+            fm = g2d.getFontMetrics();
+            g2d.setColor(Color.GRAY);
+            g2d.drawString(text, (getWidth() - fm.stringWidth(text)) / 2, getHeight() / 2 + 110);
+        } else if (!nameInputShown) {
+            g2d.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 18));
+            text = "按 R 重新开始 | 按 ESC 返回菜单";
+            fm = g2d.getFontMetrics();
+            g2d.setColor(Color.GRAY);
+            g2d.drawString(text, (getWidth() - fm.stringWidth(text)) / 2, getHeight() / 2 + 110);
+        } else {
+            g2d.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 16));
+            text = "成绩已保存 | 按 R 重新开始 | 按 ESC 返回菜单";
+            fm = g2d.getFontMetrics();
+            g2d.setColor(new Color(100, 200, 100));
+            g2d.drawString(text, (getWidth() - fm.stringWidth(text)) / 2, getHeight() / 2 + 110);
+        }
     }
 
     @Override
@@ -562,6 +653,15 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
             return;
         }
 
+        if (replaying && currentReplay != null && replayFrameIndex >= currentReplay.getTotalFrames()) {
+            stopReplay();
+            if (listener != null) {
+                listener.onReplayEnd();
+            }
+            repaint();
+            return;
+        }
+
         handleInput();
         engine.update();
         repaint();
@@ -571,29 +671,96 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         }
 
         if (engine.isGameOver()) {
-            if (engine.isVictory() && !levelTransition) {
+            if (engine.isVictory() && !levelTransition && !replaying) {
                 levelTransition = true;
                 transitionStartTime = System.currentTimeMillis();
             }
+
+            if (!replaying && !nameInputShown && !engine.isVictory()) {
+                nameInputShown = true;
+                stopRecording();
+                showNameInputDialog();
+            }
+
             if (listener != null) {
                 listener.onGameOver(engine.isVictory(), engine.getScore(), engine.getLevel());
             }
         }
     }
 
-    private void handleInput() {
-        if (keys1[KeyEvent.VK_W]) engine.playerMove(1, Direction.UP);
-        if (keys1[KeyEvent.VK_S]) engine.playerMove(1, Direction.DOWN);
-        if (keys1[KeyEvent.VK_A]) engine.playerMove(1, Direction.LEFT);
-        if (keys1[KeyEvent.VK_D]) engine.playerMove(1, Direction.RIGHT);
-        if (keys1[KeyEvent.VK_SPACE]) engine.playerShoot(1);
+    private void showNameInputDialog() {
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                String playerName = JOptionPane.showInputDialog(
+                        GamePanel.this,
+                        "请输入你的名字:",
+                        "保存成绩",
+                        JOptionPane.PLAIN_MESSAGE
+                );
 
-        if (engine.getMode() == GameEngine.GameMode.TWO_PLAYER) {
-            if (keys2[KeyEvent.VK_UP]) engine.playerMove(2, Direction.UP);
-            if (keys2[KeyEvent.VK_DOWN]) engine.playerMove(2, Direction.DOWN);
-            if (keys2[KeyEvent.VK_LEFT]) engine.playerMove(2, Direction.LEFT);
-            if (keys2[KeyEvent.VK_RIGHT]) engine.playerMove(2, Direction.RIGHT);
-            if (keys2[KeyEvent.VK_ENTER]) engine.playerShoot(2);
+                if (playerName != null && !playerName.trim().isEmpty()) {
+                    playerName = playerName.trim();
+                    if (playerName.length() > 20) {
+                        playerName = playerName.substring(0, 20);
+                    }
+                    if (listener != null) {
+                        listener.onSaveScore(playerName, engine.getScore(), engine.getLevel(), currentReplay);
+                    }
+                }
+            }
+        });
+    }
+
+    private void handleInput() {
+        if (replaying && currentReplay != null) {
+            GameReplay.FrameInput frameInput = currentReplay.getFrameInput(replayFrameIndex);
+            if (frameInput != null) {
+                if (frameInput.p1Up) engine.playerMove(1, Direction.UP);
+                if (frameInput.p1Down) engine.playerMove(1, Direction.DOWN);
+                if (frameInput.p1Left) engine.playerMove(1, Direction.LEFT);
+                if (frameInput.p1Right) engine.playerMove(1, Direction.RIGHT);
+                if (frameInput.p1Shoot) engine.playerShoot(1);
+
+                if (engine.getMode() == GameEngine.GameMode.TWO_PLAYER) {
+                    if (frameInput.p2Up) engine.playerMove(2, Direction.UP);
+                    if (frameInput.p2Down) engine.playerMove(2, Direction.DOWN);
+                    if (frameInput.p2Left) engine.playerMove(2, Direction.LEFT);
+                    if (frameInput.p2Right) engine.playerMove(2, Direction.RIGHT);
+                    if (frameInput.p2Shoot) engine.playerShoot(2);
+                }
+            }
+            replayFrameIndex++;
+        } else {
+            if (keys1[KeyEvent.VK_W]) engine.playerMove(1, Direction.UP);
+            if (keys1[KeyEvent.VK_S]) engine.playerMove(1, Direction.DOWN);
+            if (keys1[KeyEvent.VK_A]) engine.playerMove(1, Direction.LEFT);
+            if (keys1[KeyEvent.VK_D]) engine.playerMove(1, Direction.RIGHT);
+            if (keys1[KeyEvent.VK_SPACE]) engine.playerShoot(1);
+
+            if (engine.getMode() == GameEngine.GameMode.TWO_PLAYER) {
+                if (keys2[KeyEvent.VK_UP]) engine.playerMove(2, Direction.UP);
+                if (keys2[KeyEvent.VK_DOWN]) engine.playerMove(2, Direction.DOWN);
+                if (keys2[KeyEvent.VK_LEFT]) engine.playerMove(2, Direction.LEFT);
+                if (keys2[KeyEvent.VK_RIGHT]) engine.playerMove(2, Direction.RIGHT);
+                if (keys2[KeyEvent.VK_ENTER]) engine.playerShoot(2);
+            }
+
+            if (recording && currentReplay != null) {
+                GameReplay.FrameInput frameInput = new GameReplay.FrameInput(
+                        keys1[KeyEvent.VK_W],
+                        keys1[KeyEvent.VK_S],
+                        keys1[KeyEvent.VK_A],
+                        keys1[KeyEvent.VK_D],
+                        keys1[KeyEvent.VK_SPACE],
+                        keys2[KeyEvent.VK_UP],
+                        keys2[KeyEvent.VK_DOWN],
+                        keys2[KeyEvent.VK_LEFT],
+                        keys2[KeyEvent.VK_RIGHT],
+                        keys2[KeyEvent.VK_ENTER]
+                );
+                currentReplay.addFrameInput(frameInput);
+            }
         }
     }
 
@@ -602,8 +769,29 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         int key = e.getKeyCode();
 
         if (key == KeyEvent.VK_ESCAPE) {
+            if (replaying) {
+                stopReplay();
+                if (listener != null) {
+                    listener.onReplayEnd();
+                }
+            }
             if (listener != null) {
                 listener.onReturnToMenu();
+            }
+            return;
+        }
+
+        if (replaying) {
+            if (key == KeyEvent.VK_P) {
+                paused = !paused;
+            }
+            if (key == KeyEvent.VK_R) {
+                if (engine != null && currentReplay != null) {
+                    engine.restart();
+                    replayFrameIndex = 0;
+                    paused = false;
+                    levelTransition = false;
+                }
             }
             return;
         }
@@ -622,12 +810,19 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
                 engine.restart();
                 paused = false;
                 levelTransition = false;
+                nameInputShown = false;
+                if (recording) {
+                    startRecording();
+                }
             }
         }
     }
 
     @Override
     public void keyReleased(KeyEvent e) {
+        if (replaying) {
+            return;
+        }
         int key = e.getKeyCode();
         if (key >= 0 && key < 256) {
             keys1[key] = false;

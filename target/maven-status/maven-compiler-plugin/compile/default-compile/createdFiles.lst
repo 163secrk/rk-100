@@ -25,3 +25,4 @@ com\tankbattle\ui\MapEditorPanel$2.class
 com\tankbattle\model\PowerUpType.class
 com\tankbattle\engine\GameEngine$1.class
 com\tankbattle\model\GameMap$1.class
+com\tankbattle\ui\GamePanel$2.class
