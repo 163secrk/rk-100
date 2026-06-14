@@ -453,7 +453,15 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         g2d.setColor(new Color(255, 200, 50));
         g2d.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 18));
         g2d.drawString("第 " + engine.getLevel() + " 关", panelX + padding, currentY + 20);
-        currentY += 30;
+        currentY += 28;
+
+        if (engine.getTotalWaves() > 1) {
+            g2d.setColor(new Color(180, 220, 180));
+            g2d.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
+            String waveText = "波次: " + engine.getCurrentWave() + "/" + engine.getTotalWaves();
+            g2d.drawString(waveText, panelX + padding, currentY + 18);
+            currentY += 24;
+        }
 
         g2d.setColor(Color.LIGHT_GRAY);
         g2d.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 14));

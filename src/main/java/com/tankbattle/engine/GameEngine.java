@@ -1,6 +1,8 @@
 package com.tankbattle.engine;
 
 import com.tankbattle.model.*;
+import com.tankbattle.model.level.LevelConfig;
+import com.tankbattle.model.level.SpawnPoint;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -30,6 +32,10 @@ public class GameEngine {
     private static final int FRAME_DURATION = 16;
     private boolean replayMode;
 
+    private LevelRuntimeManager levelManager;
+    private List<LevelConfig> campaignLevels;
+    private boolean campaignMode;
+
     public enum GameMode {
         SINGLE_PLAYER, TWO_PLAYER
     }
@@ -56,7 +62,58 @@ public class GameEngine {
         this.level = 1;
         this.gameTime = 0;
         this.replayMode = false;
+        this.campaignMode = false;
+        this.levelManager = null;
         initGame();
+    }
+
+    public GameEngine(GameMap map, GameMode mode, LevelConfig levelConfig, long randomSeed) {
+        this.map = map;
+        this.mode = mode;
+        this.randomSeed = randomSeed;
+        this.tanks = new ArrayList<>();
+        this.bullets = new ArrayList<>();
+        this.players = new ArrayList<>();
+        this.enemies = new ArrayList<>();
+        this.powerUps = new ArrayList<>();
+        this.random = new Random(randomSeed);
+        this.gameOver = false;
+        this.victory = false;
+        this.score = 0;
+        this.level = levelConfig != null ? levelConfig.getLevelNumber() : 1;
+        this.gameTime = 0;
+        this.replayMode = false;
+        this.campaignMode = false;
+        this.levelManager = levelConfig != null ? new LevelRuntimeManager(levelConfig, randomSeed) : null;
+        initGameWithLevelConfig(levelConfig);
+    }
+
+    public GameEngine(GameMap map, GameMode mode, List<LevelConfig> campaignLevels, long randomSeed) {
+        this.map = map;
+        this.mode = mode;
+        this.randomSeed = randomSeed;
+        this.tanks = new ArrayList<>();
+        this.bullets = new ArrayList<>();
+        this.players = new ArrayList<>();
+        this.enemies = new ArrayList<>();
+        this.powerUps = new ArrayList<>();
+        this.random = new Random(randomSeed);
+        this.gameOver = false;
+        this.victory = false;
+        this.score = 0;
+        this.gameTime = 0;
+        this.replayMode = false;
+        this.campaignMode = campaignLevels != null && !campaignLevels.isEmpty();
+        this.campaignLevels = campaignLevels;
+        this.level = 1;
+        if (campaignMode) {
+            LevelConfig first = campaignLevels.get(0);
+            this.levelManager = new LevelRuntimeManager(first, randomSeed);
+            initGameWithLevelConfig(first);
+        } else {
+            this.levelManager = null;
+            initGame();
+        }
     }
 
     private void initGame() {
@@ -87,6 +144,40 @@ public class GameEngine {
         victory = false;
     }
 
+    private void initGameWithLevelConfig(LevelConfig config) {
+        map.resetObstacles();
+        tanks.clear();
+        bullets.clear();
+        players.clear();
+        enemies.clear();
+        powerUps.clear();
+
+        Tank player1 = new Tank(map.getPlayer1Spawn()[0], map.getPlayer1Spawn()[1], true, 1);
+        players.add(player1);
+        tanks.add(player1);
+
+        if (mode == GameMode.TWO_PLAYER) {
+            Tank player2 = new Tank(map.getPlayer2Spawn()[0], map.getPlayer2Spawn()[1], true, 2);
+            players.add(player2);
+            tanks.add(player2);
+        }
+
+        if (config != null && levelManager != null) {
+            maxEnemiesOnScreen = 4;
+            enemySpawnInterval = 3000;
+            enemiesRemaining = levelManager.getEnemiesRemainingTotal();
+        } else {
+            int baseEnemies = map.getEnemySpawnPoints().size();
+            enemiesRemaining = baseEnemies > 0 ? baseEnemies + (level - 1) * 3 : 10 + level * 5;
+            maxEnemiesOnScreen = 4 + Math.min(level - 1, 4);
+            enemySpawnInterval = Math.max(1500, 3000 - (level - 1) * 300);
+        }
+        enemiesKilled = 0;
+        lastEnemySpawn = 0;
+        gameOver = false;
+        victory = false;
+    }
+
     public void update() {
         if (gameOver) return;
 
@@ -103,12 +194,24 @@ public class GameEngine {
             powerUp.update(gameTime);
         }
 
+        if (levelManager != null) {
+            levelManager.update(gameTime, countAliveEnemies());
+        }
+
         updateEnemyAI();
         spawnEnemies();
         checkCollisions();
         checkPowerUpPickup();
         cleanup();
         checkGameEnd();
+    }
+
+    private int countAliveEnemies() {
+        int count = 0;
+        for (Tank t : enemies) {
+            if (t.isAlive()) count++;
+        }
+        return count;
     }
 
     private void updateEnemyAI() {
@@ -224,6 +327,75 @@ public class GameEngine {
     }
 
     private void spawnEnemies() {
+        if (levelManager != null) {
+            spawnEnemiesWithLevelConfig();
+        } else {
+            spawnEnemiesLegacy();
+        }
+    }
+
+    private void spawnEnemiesWithLevelConfig() {
+        if (!levelManager.canSpawnEnemy(gameTime, countAliveEnemies())) return;
+
+        int spawnX = -1, spawnY = -1;
+        SpawnPoint sp = levelManager.getRandomSpawnPoint();
+        if (sp != null) {
+            spawnX = sp.getX();
+            spawnY = sp.getY();
+        } else {
+            List<Tank> mapSpawns = map.getEnemySpawnPoints();
+            if (!mapSpawns.isEmpty()) {
+                Tank s = mapSpawns.get(random.nextInt(mapSpawns.size()));
+                spawnX = s.getX();
+                spawnY = s.getY();
+            } else {
+                int[] pos = {
+                        map.getWidth() / 4, 50,
+                        map.getWidth() / 2, 50,
+                        map.getWidth() * 3 / 4, 50
+                };
+                int idx = random.nextInt(3) * 2;
+                spawnX = pos[idx];
+                spawnY = pos[idx + 1];
+            }
+        }
+
+        if (spawnX < 0) return;
+
+        Tank enemy = new Tank(spawnX, spawnY, false, 0);
+        Tank.EnemyType type = levelManager.rollEnemyType();
+        enemy.setEnemyType(type);
+        applyEnemyStatsByType(enemy, type);
+
+        enemies.add(enemy);
+        tanks.add(enemy);
+        levelManager.onEnemySpawned();
+    }
+
+    private void applyEnemyStatsByType(Tank enemy, Tank.EnemyType type) {
+        int baseSpeed = 2 + Math.min(level - 1, 3);
+        int baseCooldown = Math.max(400, 800 - (level - 1) * 100);
+        switch (type) {
+            case NORMAL:
+                enemy.setSpeed(baseSpeed);
+                enemy.setShotCooldown(baseCooldown);
+                break;
+            case SPECIAL_STAR:
+                enemy.setSpeed(baseSpeed + 2);
+                enemy.setShotCooldown(Math.max(300, baseCooldown - 200));
+                break;
+            case SPECIAL_SHIELD:
+                enemy.setSpeed(Math.max(1, baseSpeed - 1));
+                enemy.setShotCooldown(baseCooldown + 100);
+                break;
+            case SPECIAL_BOMB:
+                enemy.setSpeed(baseSpeed);
+                enemy.setShotCooldown(baseCooldown);
+                break;
+        }
+    }
+
+    private void spawnEnemiesLegacy() {
         if (enemiesRemaining <= 0) return;
         if (gameTime - lastEnemySpawn < enemySpawnInterval) return;
         if (enemies.size() >= maxEnemiesOnScreen) return;
@@ -258,10 +430,7 @@ public class GameEngine {
             enemy.setEnemyType(Tank.EnemyType.NORMAL);
         }
 
-        int enemySpeed = 2 + Math.min(level - 1, 3);
-        int enemyShotCooldown = Math.max(400, 800 - (level - 1) * 100);
-        enemy.setSpeed(enemySpeed);
-        enemy.setShotCooldown(enemyShotCooldown);
+        applyEnemyStatsByType(enemy, enemy.getEnemyType());
 
         enemiesRemaining--;
         lastEnemySpawn = gameTime;
@@ -410,10 +579,38 @@ public class GameEngine {
 
     private void checkGameEnd() {
         if (gameOver) return;
-        if (enemiesRemaining <= 0 && enemies.isEmpty()) {
-            gameOver = true;
-            victory = true;
+
+        if (levelManager != null) {
+            if (levelManager.isAllWavesComplete() && enemies.isEmpty()) {
+                if (campaignMode && level < campaignLevels.size()) {
+                    advanceCampaignLevel();
+                } else {
+                    gameOver = true;
+                    victory = true;
+                }
+            }
+        } else {
+            if (enemiesRemaining <= 0 && enemies.isEmpty()) {
+                gameOver = true;
+                victory = true;
+            }
         }
+    }
+
+    private void advanceCampaignLevel() {
+        level++;
+        LevelConfig next = campaignLevels.get(level - 1);
+        this.levelManager = new LevelRuntimeManager(next, random.nextLong());
+        try {
+            String mapFile = next.getMapFile();
+            if (mapFile != null && !mapFile.isEmpty()) {
+                java.io.File f = new java.io.File(mapFile);
+                if (f.exists()) {
+                    map.loadFromFile(mapFile);
+                }
+            }
+        } catch (Exception ignored) {}
+        initGameWithLevelConfig(next);
     }
 
     public void playerMove(int playerId, Direction dir) {
@@ -436,8 +633,28 @@ public class GameEngine {
     }
 
     public void nextLevel() {
-        level++;
-        initGame();
+        if (campaignMode && level < campaignLevels.size()) {
+            advanceCampaignLevel();
+        } else {
+            level++;
+            if (levelManager != null && campaignLevels != null) {
+                int idx = Math.min(level - 1, campaignLevels.size() - 1);
+                LevelConfig cfg = campaignLevels.get(idx);
+                this.levelManager = new LevelRuntimeManager(cfg, random.nextLong());
+                try {
+                    String mapFile = cfg.getMapFile();
+                    if (mapFile != null && !mapFile.isEmpty()) {
+                        java.io.File f = new java.io.File(mapFile);
+                        if (f.exists()) {
+                            map.loadFromFile(mapFile);
+                        }
+                    }
+                } catch (Exception ignored) {}
+                initGameWithLevelConfig(cfg);
+            } else {
+                initGame();
+            }
+        }
     }
 
     public void restart() {
@@ -445,7 +662,25 @@ public class GameEngine {
         score = 0;
         gameTime = 0;
         random = new Random(randomSeed);
-        initGame();
+        if (campaignMode && !campaignLevels.isEmpty()) {
+            LevelConfig first = campaignLevels.get(0);
+            this.levelManager = new LevelRuntimeManager(first, randomSeed);
+            try {
+                String mapFile = first.getMapFile();
+                if (mapFile != null && !mapFile.isEmpty()) {
+                    java.io.File f = new java.io.File(mapFile);
+                    if (f.exists()) {
+                        map.loadFromFile(mapFile);
+                    }
+                }
+            } catch (Exception ignored) {}
+            initGameWithLevelConfig(first);
+        } else if (levelManager != null) {
+            initGameWithLevelConfig(levelManager.getLevelConfig());
+            this.levelManager = new LevelRuntimeManager(levelManager.getLevelConfig(), randomSeed);
+        } else {
+            initGame();
+        }
     }
 
     public GameMap getMap() { return map; }
@@ -458,11 +693,34 @@ public class GameEngine {
     public boolean isVictory() { return victory; }
     public int getScore() { return score; }
     public int getLevel() { return level; }
-    public int getEnemiesRemaining() { return enemiesRemaining + enemies.size(); }
+
+    public int getEnemiesRemaining() {
+        if (levelManager != null) {
+            return levelManager.getEnemiesRemainingTotal() + countAliveEnemies();
+        }
+        return enemiesRemaining + enemies.size();
+    }
+
+    public int getCurrentWave() {
+        if (levelManager != null) {
+            return levelManager.getCurrentWaveIndex() + 1;
+        }
+        return 1;
+    }
+
+    public int getTotalWaves() {
+        if (levelManager != null) {
+            return levelManager.getTotalWaves();
+        }
+        return 1;
+    }
+
     public GameMode getMode() { return mode; }
     public long getRandomSeed() { return randomSeed; }
     public long getGameTime() { return gameTime; }
     public boolean isReplayMode() { return replayMode; }
     public void setReplayMode(boolean replayMode) { this.replayMode = replayMode; }
     public static int getFrameDuration() { return FRAME_DURATION; }
+    public boolean isCampaignMode() { return campaignMode; }
+    public LevelRuntimeManager getLevelManager() { return levelManager; }
 }

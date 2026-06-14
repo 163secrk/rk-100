@@ -10,19 +10,26 @@ public class MenuPanel extends JPanel {
     private JButton singlePlayerBtn;
     private JButton twoPlayerBtn;
     private JButton mapEditorBtn;
+    private JButton levelDesignerBtn;
+    private JButton campaignBtn;
     private JButton selectMapBtn;
+    private JButton selectLevelBtn;
     private JButton leaderboardBtn;
     private JButton exitBtn;
     private JLabel titleLabel;
     private JLabel subtitleLabel;
     private JLabel selectedMapLabel;
+    private JLabel selectedLevelLabel;
     private MenuListener listener;
     private String selectedMap;
+    private String selectedLevelConfig;
 
     public interface MenuListener {
         void onSinglePlayer(String mapFile);
         void onTwoPlayer(String mapFile);
         void onMapEditor();
+        void onLevelDesigner();
+        void onCampaign(String levelConfigFile);
         void onLeaderboard();
         void onExit();
     }
@@ -30,6 +37,7 @@ public class MenuPanel extends JPanel {
     public MenuPanel(MenuListener listener) {
         this.listener = listener;
         this.selectedMap = "maps/level1.txt";
+        this.selectedLevelConfig = null;
         initUI();
     }
 
@@ -58,57 +66,87 @@ public class MenuPanel extends JPanel {
         gbc.ipady = 15;
         gbc.ipadx = 100;
 
-        singlePlayerBtn = createMenuButton("单人闯关", "WASD移动, 空格射击");
+        campaignBtn = createMenuButton("闯关模式", "按关卡配置逐关挑战");
+        campaignBtn.addActionListener(e -> {
+            if (listener != null) listener.onCampaign(selectedLevelConfig);
+        });
+        gbc.gridy = 3;
+        add(campaignBtn, gbc);
+
+        singlePlayerBtn = createMenuButton("单人闯关(快速)", "WASD移动, 空格射击");
         singlePlayerBtn.addActionListener(e -> {
             if (listener != null) listener.onSinglePlayer(selectedMap);
         });
-        gbc.gridy = 3;
+        gbc.gridy = 4;
         add(singlePlayerBtn, gbc);
 
         twoPlayerBtn = createMenuButton("双人对抗", "P1:WASD+空格 | P2:方向键+回车");
         twoPlayerBtn.addActionListener(e -> {
             if (listener != null) listener.onTwoPlayer(selectedMap);
         });
-        gbc.gridy = 4;
+        gbc.gridy = 5;
         add(twoPlayerBtn, gbc);
 
         mapEditorBtn = createMenuButton("地图编辑器", "创建和编辑自定义地图");
         mapEditorBtn.addActionListener(e -> {
             if (listener != null) listener.onMapEditor();
         });
-        gbc.gridy = 5;
+        gbc.gridy = 6;
         add(mapEditorBtn, gbc);
+
+        levelDesignerBtn = createMenuButton("关卡设计器", "配置敌人数、波次、出生点");
+        levelDesignerBtn.addActionListener(e -> {
+            if (listener != null) listener.onLevelDesigner();
+        });
+        gbc.gridy = 7;
+        add(levelDesignerBtn, gbc);
 
         leaderboardBtn = createMenuButton("计分排行榜", "查看历史成绩记录");
         leaderboardBtn.addActionListener(e -> {
             if (listener != null) listener.onLeaderboard();
         });
-        gbc.gridy = 6;
+        gbc.gridy = 8;
         add(leaderboardBtn, gbc);
 
         selectMapBtn = createMenuButton("选择地图", "选择游戏地图");
         selectMapBtn.addActionListener(e -> selectMap());
-        gbc.gridy = 7;
+        gbc.gridy = 9;
         add(selectMapBtn, gbc);
+
+        selectLevelBtn = createMenuButton("选择关卡配置", "选择闯关模式关卡配置文件");
+        selectLevelBtn.addActionListener(e -> selectLevelConfig());
+        gbc.gridy = 10;
+        add(selectLevelBtn, gbc);
 
         exitBtn = createMenuButton("退出游戏", "退出程序");
         exitBtn.addActionListener(e -> {
             if (listener != null) listener.onExit();
         });
-        gbc.gridy = 8;
+        gbc.gridy = 11;
         add(exitBtn, gbc);
+
+        JPanel infoPanel = new JPanel(new GridLayout(2, 1, 0, 5));
+        infoPanel.setOpaque(false);
 
         selectedMapLabel = new JLabel("当前地图: " + getMapDisplayName(selectedMap));
         selectedMapLabel.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 14));
         selectedMapLabel.setForeground(Color.LIGHT_GRAY);
-        gbc.gridy = 9;
+        infoPanel.add(selectedMapLabel);
+
+        selectedLevelLabel = new JLabel("闯关配置: " +
+                (selectedLevelConfig != null ? getMapDisplayName(selectedLevelConfig) : "(默认闯关关卡)"));
+        selectedLevelLabel.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 14));
+        selectedLevelLabel.setForeground(new Color(150, 200, 255));
+        infoPanel.add(selectedLevelLabel);
+
+        gbc.gridy = 12;
         gbc.insets = new Insets(30, 10, 10, 10);
-        add(selectedMapLabel, gbc);
+        add(infoPanel, gbc);
 
         JLabel controlsLabel = new JLabel("游戏中按 P 暂停 | R 重新开始 | ESC 返回菜单");
         controlsLabel.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
         controlsLabel.setForeground(Color.GRAY);
-        gbc.gridy = 10;
+        gbc.gridy = 13;
         gbc.insets = new Insets(5, 10, 10, 10);
         add(controlsLabel, gbc);
     }
@@ -148,7 +186,26 @@ public class MenuPanel extends JPanel {
         }
     }
 
+    private void selectLevelConfig() {
+        JFileChooser fileChooser = new JFileChooser();
+        File levelsDir = new File("levels");
+        if (levelsDir.exists()) {
+            fileChooser.setCurrentDirectory(levelsDir);
+        } else {
+            fileChooser.setCurrentDirectory(new File(System.getProperty("user.dir")));
+        }
+        fileChooser.setDialogTitle("选择关卡配置文件");
+        fileChooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("关卡配置 (*.json)", "json"));
+        int result = fileChooser.showOpenDialog(this);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            File selectedFile = fileChooser.getSelectedFile();
+            selectedLevelConfig = selectedFile.getAbsolutePath();
+            selectedLevelLabel.setText("闯关配置: " + getMapDisplayName(selectedLevelConfig));
+        }
+    }
+
     private String getMapDisplayName(String path) {
+        if (path == null) return "(未选择)";
         File file = new File(path);
         return file.getName();
     }
