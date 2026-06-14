@@ -15,6 +15,12 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
     private boolean paused;
     private GameUIListener listener;
     private int cellSize;
+    private int sidePanelWidth;
+    private int highScore;
+    private int highLevel;
+    private boolean levelTransition;
+    private long transitionStartTime;
+    private static final int TRANSITION_DELAY = 3000;
 
     public interface GameUIListener {
         void onGameOver(boolean victory, int score, int level);
@@ -29,6 +35,11 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         this.keys2 = new boolean[256];
         this.paused = false;
         this.cellSize = Obstacle.SIZE;
+        this.sidePanelWidth = 180;
+        this.highScore = 0;
+        this.highLevel = 1;
+        this.levelTransition = false;
+        this.transitionStartTime = 0;
         setBackground(Color.BLACK);
         setFocusable(true);
         addKeyListener(this);
@@ -38,6 +49,15 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 
     public void setEngine(GameEngine engine) {
         this.engine = engine;
+    }
+
+    public void setHighScore(int score, int level) {
+        this.highScore = score;
+        this.highLevel = level;
+    }
+
+    public int getSidePanelWidth() {
+        return sidePanelWidth;
     }
 
     public void stop() {
@@ -65,8 +85,16 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
 
+        int gameWidth = getWidth() - sidePanelWidth;
+        int gameHeight = getHeight();
+
         g2d.setColor(new Color(30, 30, 30));
-        g2d.fillRect(0, 0, getWidth(), getHeight());
+        g2d.fillRect(0, 0, gameWidth, gameHeight);
+
+        g2d.setColor(new Color(20, 20, 30));
+        g2d.fillRect(gameWidth, 0, sidePanelWidth, gameHeight);
+        g2d.setColor(new Color(60, 60, 80));
+        g2d.drawLine(gameWidth, 0, gameWidth, gameHeight);
 
         if (engine == null) return;
 
@@ -105,12 +133,15 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         }
 
         drawHUD(g2d);
+        drawSidePanel(g2d);
 
         if (paused) {
             drawPauseScreen(g2d);
         }
 
-        if (engine.isGameOver()) {
+        if (levelTransition) {
+            drawLevelTransition(g2d);
+        } else if (engine.isGameOver()) {
             drawGameOver(g2d);
         }
     }
@@ -308,32 +339,121 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
     }
 
     private void drawHUD(Graphics2D g2d) {
+        int gameWidth = getWidth() - sidePanelWidth;
+
         g2d.setColor(Color.WHITE);
         g2d.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
         g2d.drawString("得分: " + engine.getScore(), 10, 25);
-        g2d.drawString("关卡: " + engine.getLevel(), 120, 25);
-        g2d.drawString("敌人: " + engine.getEnemiesRemaining(), 220, 25);
-
-        int xOffset = getWidth() - 350;
-        for (Tank player : engine.getPlayers()) {
-            String label = engine.getMode() == GameEngine.GameMode.TWO_PLAYER ?
-                    "P" + player.getPlayerId() : "生命";
-            g2d.setColor(player.getColor());
-            g2d.drawString(label + ": " + player.getHealth() + "/" + player.getMaxHealth(),
-                    xOffset, 25);
-            String firepower = "火力: " + player.getFirepower();
-            g2d.drawString(firepower, xOffset, 50);
-            if (player.isShieldActive()) {
-                long remaining = (player.getShieldEndTime() - System.currentTimeMillis()) / 1000;
-                g2d.setColor(new Color(0, 191, 255));
-                g2d.drawString("护盾: " + remaining + "s", xOffset, 75);
-            }
-            xOffset += 170;
-        }
 
         g2d.setColor(Color.GRAY);
         g2d.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
-        g2d.drawString("P:暂停  R:重新开始  ESC:返回菜单", getWidth() - 230, getHeight() - 10);
+        g2d.drawString("P:暂停  R:重新开始  ESC:返回菜单", gameWidth - 230, getHeight() - 10);
+    }
+
+    private void drawSidePanel(Graphics2D g2d) {
+        int panelX = getWidth() - sidePanelWidth;
+        int padding = 15;
+        int currentY = padding;
+
+        g2d.setColor(new Color(40, 40, 60));
+        g2d.fillRect(panelX, 0, sidePanelWidth, getHeight());
+
+        g2d.setColor(new Color(100, 100, 140));
+        g2d.setStroke(new BasicStroke(2));
+        g2d.drawLine(panelX, 0, panelX, getHeight());
+
+        g2d.setColor(Color.WHITE);
+        g2d.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 20));
+        String title = "战斗信息";
+        FontMetrics fm = g2d.getFontMetrics();
+        g2d.drawString(title, panelX + (sidePanelWidth - fm.stringWidth(title)) / 2, currentY + 20);
+        currentY += 35;
+
+        g2d.setColor(new Color(80, 80, 100));
+        g2d.drawLine(panelX + padding, currentY, panelX + sidePanelWidth - padding, currentY);
+        currentY += 15;
+
+        g2d.setColor(new Color(255, 200, 50));
+        g2d.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 18));
+        g2d.drawString("第 " + engine.getLevel() + " 关", panelX + padding, currentY + 20);
+        currentY += 30;
+
+        g2d.setColor(Color.LIGHT_GRAY);
+        g2d.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 14));
+        g2d.drawString("剩余敌人:", panelX + padding, currentY + 18);
+        g2d.setColor(new Color(255, 80, 80));
+        g2d.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 20));
+        g2d.drawString(String.valueOf(engine.getEnemiesRemaining()), panelX + sidePanelWidth - padding - 40, currentY + 20);
+        currentY += 30;
+
+        g2d.setColor(Color.LIGHT_GRAY);
+        g2d.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 14));
+        g2d.drawString("当前得分:", panelX + padding, currentY + 18);
+        g2d.setColor(new Color(255, 220, 100));
+        g2d.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 18));
+        g2d.drawString(String.valueOf(engine.getScore()), panelX + sidePanelWidth - padding - 60, currentY + 20);
+        currentY += 25;
+
+        g2d.setColor(new Color(80, 80, 100));
+        g2d.drawLine(panelX + padding, currentY, panelX + sidePanelWidth - padding, currentY);
+        currentY += 15;
+
+        g2d.setColor(new Color(150, 200, 255));
+        g2d.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
+        g2d.drawString("★ 历史最高", panelX + padding, currentY + 18);
+        currentY += 25;
+
+        g2d.setColor(Color.LIGHT_GRAY);
+        g2d.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
+        g2d.drawString("最高得分:", panelX + padding, currentY + 16);
+        g2d.setColor(new Color(255, 215, 0));
+        g2d.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
+        g2d.drawString(String.valueOf(highScore), panelX + sidePanelWidth - padding - 60, currentY + 18);
+        currentY += 25;
+
+        g2d.setColor(Color.LIGHT_GRAY);
+        g2d.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
+        g2d.drawString("最高关卡:", panelX + padding, currentY + 16);
+        g2d.setColor(new Color(100, 220, 100));
+        g2d.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
+        g2d.drawString("第 " + highLevel + " 关", panelX + sidePanelWidth - padding - 60, currentY + 18);
+        currentY += 25;
+
+        g2d.setColor(new Color(80, 80, 100));
+        g2d.drawLine(panelX + padding, currentY, panelX + sidePanelWidth - padding, currentY);
+        currentY += 15;
+
+        g2d.setColor(Color.LIGHT_GRAY);
+        g2d.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
+        g2d.drawString("玩家状态", panelX + padding, currentY + 18);
+        currentY += 25;
+
+        for (Tank player : engine.getPlayers()) {
+            if (!player.isAlive()) continue;
+            String label = engine.getMode() == GameEngine.GameMode.TWO_PLAYER ?
+                    "P" + player.getPlayerId() : "玩家";
+            g2d.setColor(player.getColor());
+            g2d.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
+            g2d.drawString(label, panelX + padding, currentY + 16);
+
+            g2d.setColor(Color.LIGHT_GRAY);
+            g2d.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+            g2d.drawString("生命: " + player.getHealth() + "/" + player.getMaxHealth(),
+                    panelX + padding + 5, currentY + 36);
+
+            g2d.drawString("火力: " + player.getFirepower(),
+                    panelX + padding + 5, currentY + 54);
+
+            if (player.isShieldActive()) {
+                long remaining = (player.getShieldEndTime() - System.currentTimeMillis()) / 1000;
+                g2d.setColor(new Color(0, 191, 255));
+                g2d.drawString("护盾: " + remaining + "s",
+                        panelX + padding + 5, currentY + 72);
+                currentY += 78;
+            } else {
+                currentY += 60;
+            }
+        }
     }
 
     private void drawPauseScreen(Graphics2D g2d) {
@@ -350,6 +470,44 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         text = "按 P 继续游戏 | 按 ESC 返回菜单";
         fm = g2d.getFontMetrics();
         g2d.drawString(text, (getWidth() - fm.stringWidth(text)) / 2, getHeight() / 2 + 50);
+    }
+
+    private void drawLevelTransition(Graphics2D g2d) {
+        g2d.setColor(new Color(0, 20, 0, 200));
+        g2d.fillRect(0, 0, getWidth(), getHeight());
+
+        long elapsed = System.currentTimeMillis() - transitionStartTime;
+        int remaining = (int) ((TRANSITION_DELAY - elapsed) / 1000) + 1;
+
+        g2d.setColor(Color.YELLOW);
+        g2d.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 48));
+        FontMetrics fm = g2d.getFontMetrics();
+        String text = "关卡完成！";
+        g2d.drawString(text, (getWidth() - fm.stringWidth(text)) / 2, getHeight() / 2 - 60);
+
+        g2d.setColor(Color.WHITE);
+        g2d.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 26));
+        text = "第 " + engine.getLevel() + " 关 已通关";
+        fm = g2d.getFontMetrics();
+        g2d.drawString(text, (getWidth() - fm.stringWidth(text)) / 2, getHeight() / 2);
+
+        g2d.setColor(new Color(100, 255, 100));
+        g2d.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 28));
+        text = "即将进入第 " + (engine.getLevel() + 1) + " 关...";
+        fm = g2d.getFontMetrics();
+        g2d.drawString(text, (getWidth() - fm.stringWidth(text)) / 2, getHeight() / 2 + 50);
+
+        g2d.setColor(Color.LIGHT_GRAY);
+        g2d.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 18));
+        text = "本关得分: " + engine.getScore();
+        fm = g2d.getFontMetrics();
+        g2d.drawString(text, (getWidth() - fm.stringWidth(text)) / 2, getHeight() / 2 + 100);
+
+        g2d.setColor(Color.GRAY);
+        g2d.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 14));
+        text = "(" + remaining + " 秒后自动开始)";
+        fm = g2d.getFontMetrics();
+        g2d.drawString(text, (getWidth() - fm.stringWidth(text)) / 2, getHeight() / 2 + 140);
     }
 
     private void drawGameOver(Graphics2D g2d) {
@@ -381,7 +539,25 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        if (paused || engine == null) {
+        if (engine == null) {
+            repaint();
+            return;
+        }
+
+        if (levelTransition) {
+            long elapsed = System.currentTimeMillis() - transitionStartTime;
+            if (elapsed >= TRANSITION_DELAY) {
+                levelTransition = false;
+                engine.nextLevel();
+                if (listener != null) {
+                    listener.onScoreUpdate(engine.getScore());
+                }
+            }
+            repaint();
+            return;
+        }
+
+        if (paused) {
             repaint();
             return;
         }
@@ -394,8 +570,14 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
             listener.onScoreUpdate(engine.getScore());
         }
 
-        if (engine.isGameOver() && listener != null) {
-            listener.onGameOver(engine.isVictory(), engine.getScore(), engine.getLevel());
+        if (engine.isGameOver()) {
+            if (engine.isVictory() && !levelTransition) {
+                levelTransition = true;
+                transitionStartTime = System.currentTimeMillis();
+            }
+            if (listener != null) {
+                listener.onGameOver(engine.isVictory(), engine.getScore(), engine.getLevel());
+            }
         }
     }
 
@@ -439,6 +621,7 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
             if (engine != null) {
                 engine.restart();
                 paused = false;
+                levelTransition = false;
             }
         }
     }

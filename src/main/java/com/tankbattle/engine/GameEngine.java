@@ -66,10 +66,10 @@ public class GameEngine {
             tanks.add(player2);
         }
 
-        enemiesRemaining = map.getEnemySpawnPoints().size();
-        if (enemiesRemaining == 0) {
-            enemiesRemaining = 10 + level * 5;
-        }
+        int baseEnemies = map.getEnemySpawnPoints().size();
+        enemiesRemaining = baseEnemies > 0 ? baseEnemies + (level - 1) * 3 : 10 + level * 5;
+        maxEnemiesOnScreen = 4 + Math.min(level - 1, 4);
+        enemySpawnInterval = Math.max(1500, 3000 - (level - 1) * 300);
         enemiesKilled = 0;
         lastEnemySpawn = 0;
         gameOver = false;
@@ -245,6 +245,11 @@ public class GameEngine {
         } else {
             enemy.setEnemyType(Tank.EnemyType.NORMAL);
         }
+
+        int enemySpeed = 2 + Math.min(level - 1, 3);
+        int enemyShotCooldown = Math.max(400, 800 - (level - 1) * 100);
+        enemy.setSpeed(enemySpeed);
+        enemy.setShotCooldown(enemyShotCooldown);
 
         enemiesRemaining--;
         lastEnemySpawn = now;

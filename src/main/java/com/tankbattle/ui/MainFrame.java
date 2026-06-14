@@ -1,6 +1,7 @@
 package com.tankbattle.ui;
 
 import com.tankbattle.engine.GameEngine;
+import com.tankbattle.engine.HighScoreManager;
 import com.tankbattle.model.GameMap;
 
 import javax.swing.*;
@@ -18,8 +19,10 @@ public class MainFrame extends JFrame implements MenuPanel.MenuListener, GamePan
     private MapEditorPanel mapEditorPanel;
     private GameEngine engine;
     private GameMap currentMap;
+    private HighScoreManager highScoreManager;
     private int mapWidth = 800;
     private int mapHeight = 608;
+    private int sidePanelWidth = 180;
 
     public MainFrame() {
         setTitle("坦克大战 - Tank Battle");
@@ -32,6 +35,8 @@ public class MainFrame extends JFrame implements MenuPanel.MenuListener, GamePan
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+        highScoreManager = new HighScoreManager();
 
         cardLayout = new CardLayout();
         mainPanel = new JPanel(cardLayout);
@@ -46,7 +51,7 @@ public class MainFrame extends JFrame implements MenuPanel.MenuListener, GamePan
 
         setContentPane(mainPanel);
         pack();
-        setSize(mapWidth + 20, mapHeight + 60);
+        setSize(mapWidth + sidePanelWidth + 20, mapHeight + 60);
         setLocationRelativeTo(null);
 
         createDefaultMaps();
@@ -212,12 +217,13 @@ public class MainFrame extends JFrame implements MenuPanel.MenuListener, GamePan
                 mainPanel.remove(gamePanel);
             }
             gamePanel = new GamePanel(engine, this);
-            gamePanel.setPreferredSize(new Dimension(mapWidth, mapHeight));
+            gamePanel.setPreferredSize(new Dimension(mapWidth + sidePanelWidth, mapHeight));
+            gamePanel.setHighScore(highScoreManager.getHighScore(), highScoreManager.getHighLevel());
             mainPanel.add(gamePanel, "GAME");
             cardLayout.show(mainPanel, "GAME");
             gamePanel.requestFocus();
             pack();
-            setSize(mapWidth + 20, mapHeight + 60);
+            setSize(mapWidth + sidePanelWidth + 20, mapHeight + 60);
         } catch (IOException e) {
             JOptionPane.showMessageDialog(this, "加载地图失败: " + e.getMessage(), "错误", JOptionPane.ERROR_MESSAGE);
             e.printStackTrace();
@@ -237,10 +243,25 @@ public class MainFrame extends JFrame implements MenuPanel.MenuListener, GamePan
 
     @Override
     public void onGameOver(boolean victory, int score, int level) {
+        if (victory) {
+            highScoreManager.checkAndUpdateHighScore(score, level);
+            if (gamePanel != null) {
+                gamePanel.setHighScore(highScoreManager.getHighScore(), highScoreManager.getHighLevel());
+            }
+        } else {
+            highScoreManager.checkAndUpdateHighScore(score, level);
+            if (gamePanel != null) {
+                gamePanel.setHighScore(highScoreManager.getHighScore(), highScoreManager.getHighLevel());
+            }
+        }
     }
 
     @Override
     public void onScoreUpdate(int score) {
+        highScoreManager.checkAndUpdateHighScore(score, engine.getLevel());
+        if (gamePanel != null) {
+            gamePanel.setHighScore(highScoreManager.getHighScore(), highScoreManager.getHighLevel());
+        }
     }
 
     @Override

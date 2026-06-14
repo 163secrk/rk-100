@@ -223,4 +223,6 @@ public class Tank {
     public void setY(int y) { this.y = y; }
     public void setDirection(Direction direction) { this.direction = direction; }
     public void setAlive(boolean alive) { this.alive = alive; }
+    public void setSpeed(int speed) { this.speed = speed; }
+    public void setShotCooldown(int cooldown) { this.shotCooldown = cooldown; }
 }
