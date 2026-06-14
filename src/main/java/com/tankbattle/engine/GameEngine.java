@@ -95,23 +95,27 @@ public class GameEngine {
             if (!enemy.isAlive()) continue;
 
             Tank targetPlayer = findNearestPlayer(enemy);
-            if (targetPlayer != null && random.nextInt(100) < 70) {
+            Direction separateDir = getSeparationDirection(enemy);
+
+            if (separateDir != null && random.nextInt(100) < 60) {
+                enemy.setDirection(separateDir);
+            } else if (targetPlayer != null && random.nextInt(100) < 40) {
                 Direction chaseDir = getChaseDirection(enemy, targetPlayer);
                 if (chaseDir != null) {
                     enemy.setDirection(chaseDir);
                 }
             } else {
-                if (random.nextInt(100) < 10) {
+                if (random.nextInt(100) < 15) {
                     Direction[] dirs = Direction.values();
                     enemy.setDirection(dirs[random.nextInt(dirs.length)]);
                 }
             }
 
-            enemy.move(enemy.getDirection(), map);
+            enemy.move(enemy.getDirection(), map, tanks);
 
-            int shootChance = 3;
+            int shootChance = 2;
             if (targetPlayer != null && isAlignedWithPlayer(enemy, targetPlayer)) {
-                shootChance = 15;
+                shootChance = 10;
             }
             if (random.nextInt(100) < shootChance) {
                 Bullet bullet = enemy.shoot();
@@ -119,6 +123,30 @@ public class GameEngine {
                     bullets.add(bullet);
                 }
             }
+        }
+    }
+
+    private Direction getSeparationDirection(Tank enemy) {
+        int tooCloseDistance = Tank.SIZE * 2;
+        int dx = 0, dy = 0;
+        int neighborCount = 0;
+
+        for (Tank other : enemies) {
+            if (other == enemy || !other.isAlive()) continue;
+            double dist = getDistance(enemy, other);
+            if (dist < tooCloseDistance && dist > 0) {
+                dx += enemy.getX() - other.getX();
+                dy += enemy.getY() - other.getY();
+                neighborCount++;
+            }
+        }
+
+        if (neighborCount == 0) return null;
+
+        if (Math.abs(dx) > Math.abs(dy)) {
+            return dx > 0 ? Direction.RIGHT : Direction.LEFT;
+        } else {
+            return dy > 0 ? Direction.DOWN : Direction.UP;
         }
     }
 
@@ -292,7 +320,7 @@ public class GameEngine {
     public void playerMove(int playerId, Direction dir) {
         for (Tank player : players) {
             if (player.getPlayerId() == playerId && player.isAlive()) {
-                player.move(dir, map);
+                player.move(dir, map, tanks);
             }
         }
     }

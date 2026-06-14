@@ -1,6 +1,7 @@
 package com.tankbattle.model;
 
 import java.awt.*;
+import java.util.List;
 
 public class Tank {
     private int x, y;
@@ -32,7 +33,7 @@ public class Tank {
         this.color = player ? (playerId == 1 ? Color.YELLOW : Color.CYAN) : Color.RED;
     }
 
-    public void move(Direction dir, GameMap map) {
+    public void move(Direction dir, GameMap map, List<Tank> allTanks) {
         if (!alive) return;
         this.direction = dir;
         int newX = x, newY = y;
@@ -42,13 +43,13 @@ public class Tank {
             case LEFT: newX -= speed; break;
             case RIGHT: newX += speed; break;
         }
-        if (canMoveTo(newX, newY, map)) {
+        if (canMoveTo(newX, newY, map, allTanks)) {
             x = newX;
             y = newY;
         }
     }
 
-    private boolean canMoveTo(int newX, int newY, GameMap map) {
+    private boolean canMoveTo(int newX, int newY, GameMap map, List<Tank> allTanks) {
         if (newX < 0 || newX + SIZE > map.getWidth() ||
             newY < 0 || newY + SIZE > map.getHeight()) {
             return false;
@@ -60,6 +61,13 @@ public class Tank {
                 if (tankRect.intersects(obsRect)) {
                     return false;
                 }
+            }
+        }
+        for (Tank other : allTanks) {
+            if (other == this || !other.isAlive()) continue;
+            Rectangle otherRect = new Rectangle(other.getX(), other.getY(), SIZE, SIZE);
+            if (tankRect.intersects(otherRect)) {
+                return false;
             }
         }
         return true;
