@@ -19,6 +19,7 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
     public interface GameUIListener {
         void onGameOver(boolean victory, int score, int level);
         void onScoreUpdate(int score);
+        void onReturnToMenu();
     }
 
     public GamePanel(GameEngine engine, GameUIListener listener) {
@@ -239,7 +240,7 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 
     private void drawHUD(Graphics2D g2d) {
         g2d.setColor(Color.WHITE);
-        g2d.setFont(new Font("Arial", Font.BOLD, 16));
+        g2d.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
         g2d.drawString("得分: " + engine.getScore(), 10, 25);
         g2d.drawString("关卡: " + engine.getLevel(), 120, 25);
         g2d.drawString("敌人: " + engine.getEnemiesRemaining(), 220, 25);
@@ -255,8 +256,8 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         }
 
         g2d.setColor(Color.GRAY);
-        g2d.setFont(new Font("Arial", Font.PLAIN, 12));
-        g2d.drawString("P:暂停  R:重新开始", getWidth() - 150, getHeight() - 10);
+        g2d.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+        g2d.drawString("P:暂停  R:重新开始  ESC:返回菜单", getWidth() - 230, getHeight() - 10);
     }
 
     private void drawPauseScreen(Graphics2D g2d) {
@@ -264,13 +265,13 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         g2d.fillRect(0, 0, getWidth(), getHeight());
 
         g2d.setColor(Color.WHITE);
-        g2d.setFont(new Font("Arial", Font.BOLD, 48));
+        g2d.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 48));
         FontMetrics fm = g2d.getFontMetrics();
         String text = "游戏暂停";
         g2d.drawString(text, (getWidth() - fm.stringWidth(text)) / 2, getHeight() / 2);
 
-        g2d.setFont(new Font("Arial", Font.PLAIN, 20));
-        text = "按 P 继续游戏";
+        g2d.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 20));
+        text = "按 P 继续游戏 | 按 ESC 返回菜单";
         fm = g2d.getFontMetrics();
         g2d.drawString(text, (getWidth() - fm.stringWidth(text)) / 2, getHeight() / 2 + 50);
     }
@@ -279,13 +280,13 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         g2d.setColor(new Color(0, 0, 0, 200));
         g2d.fillRect(0, 0, getWidth(), getHeight());
 
-        g2d.setFont(new Font("Arial", Font.BOLD, 56));
+        g2d.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 56));
         String text = engine.isVictory() ? "胜利！" : "游戏结束";
         FontMetrics fm = g2d.getFontMetrics();
         g2d.setColor(engine.isVictory() ? Color.YELLOW : Color.RED);
         g2d.drawString(text, (getWidth() - fm.stringWidth(text)) / 2, getHeight() / 2 - 40);
 
-        g2d.setFont(new Font("Arial", Font.PLAIN, 24));
+        g2d.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 24));
         g2d.setColor(Color.WHITE);
         text = "最终得分: " + engine.getScore();
         fm = g2d.getFontMetrics();
@@ -295,7 +296,7 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         fm = g2d.getFontMetrics();
         g2d.drawString(text, (getWidth() - fm.stringWidth(text)) / 2, getHeight() / 2 + 60);
 
-        g2d.setFont(new Font("Arial", Font.PLAIN, 18));
+        g2d.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 18));
         text = "按 R 重新开始 | 按 ESC 返回菜单";
         fm = g2d.getFontMetrics();
         g2d.setColor(Color.GRAY);
@@ -341,6 +342,14 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
     @Override
     public void keyPressed(KeyEvent e) {
         int key = e.getKeyCode();
+
+        if (key == KeyEvent.VK_ESCAPE) {
+            if (listener != null) {
+                listener.onReturnToMenu();
+            }
+            return;
+        }
+
         if (key >= 0 && key < 256) {
             keys1[key] = true;
             keys2[key] = true;

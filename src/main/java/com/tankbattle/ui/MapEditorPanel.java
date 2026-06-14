@@ -57,7 +57,7 @@ public class MapEditorPanel extends JPanel implements ActionListener, MouseListe
         toolBar.addSeparator();
 
         JButton eraseBtn = new JButton("橡皮擦");
-        eraseBtn.setFont(new Font("微软雅黑", Font.PLAIN, 12));
+        eraseBtn.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
         eraseBtn.setFocusPainted(false);
         eraseBtn.addActionListener(e -> {
             eraseMode = true;
@@ -75,24 +75,24 @@ public class MapEditorPanel extends JPanel implements ActionListener, MouseListe
         toolBar.addSeparator();
 
         saveBtn = new JButton("保存地图");
-        saveBtn.setFont(new Font("微软雅黑", Font.BOLD, 12));
+        saveBtn.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
         saveBtn.addActionListener(this);
         toolBar.add(saveBtn);
 
         loadBtn = new JButton("加载地图");
-        loadBtn.setFont(new Font("微软雅黑", Font.BOLD, 12));
+        loadBtn.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
         loadBtn.addActionListener(this);
         toolBar.add(loadBtn);
 
         clearBtn = new JButton("清空地图");
-        clearBtn.setFont(new Font("微软雅黑", Font.BOLD, 12));
+        clearBtn.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
         clearBtn.addActionListener(this);
         toolBar.add(clearBtn);
 
         toolBar.addSeparator();
 
         backBtn = new JButton("返回菜单");
-        backBtn.setFont(new Font("微软雅黑", Font.BOLD, 12));
+        backBtn.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
         backBtn.addActionListener(e -> mainFrame.returnToMenu());
         toolBar.add(backBtn);
 
@@ -113,7 +113,7 @@ public class MapEditorPanel extends JPanel implements ActionListener, MouseListe
         add(editorCanvas, BorderLayout.CENTER);
 
         statusLabel = new JLabel("当前工具: 砖墙 (B) | 左键绘制, 右键擦除");
-        statusLabel.setFont(new Font("微软雅黑", Font.PLAIN, 12));
+        statusLabel.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
         statusLabel.setForeground(Color.WHITE);
         statusLabel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
         statusLabel.setBackground(new Color(30, 30, 30));
@@ -123,7 +123,7 @@ public class MapEditorPanel extends JPanel implements ActionListener, MouseListe
 
     private void addToolButton(String name, ObstacleType type, Color color, char symbol) {
         JButton btn = new JButton(name);
-        btn.setFont(new Font("微软雅黑", Font.PLAIN, 12));
+        btn.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
         btn.setFocusPainted(false);
         btn.setBackground(color);
         btn.setForeground(Color.WHITE);
@@ -140,7 +140,7 @@ public class MapEditorPanel extends JPanel implements ActionListener, MouseListe
 
     private void addSpawnButton(String name, char symbol, Color color) {
         JButton btn = new JButton(name);
-        btn.setFont(new Font("微软雅黑", Font.PLAIN, 12));
+        btn.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
         btn.setFocusPainted(false);
         btn.setBackground(color);
         btn.setForeground(Color.BLACK);

@@ -34,13 +34,14 @@ public class MenuPanel extends JPanel {
     private void initUI() {
         setLayout(new GridBagLayout());
         setBackground(new Color(20, 30, 50));
+        setOpaque(true);
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(10, 10, 10, 10);
         gbc.gridwidth = GridBagConstraints.REMAINDER;
         gbc.anchor = GridBagConstraints.CENTER;
 
         titleLabel = new JLabel("坦克大战");
-        titleLabel.setFont(new Font("黑体", Font.BOLD, 72));
+        titleLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 72));
         titleLabel.setForeground(Color.YELLOW);
         gbc.gridy = 0;
         add(titleLabel, gbc);
@@ -89,14 +90,14 @@ public class MenuPanel extends JPanel {
         add(exitBtn, gbc);
 
         selectedMapLabel = new JLabel("当前地图: " + getMapDisplayName(selectedMap));
-        selectedMapLabel.setFont(new Font("微软雅黑", Font.PLAIN, 14));
+        selectedMapLabel.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 14));
         selectedMapLabel.setForeground(Color.LIGHT_GRAY);
         gbc.gridy = 8;
         gbc.insets = new Insets(30, 10, 10, 10);
         add(selectedMapLabel, gbc);
 
         JLabel controlsLabel = new JLabel("游戏中按 P 暂停 | R 重新开始 | ESC 返回菜单");
-        controlsLabel.setFont(new Font("微软雅黑", Font.PLAIN, 12));
+        controlsLabel.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
         controlsLabel.setForeground(Color.GRAY);
         gbc.gridy = 9;
         gbc.insets = new Insets(5, 10, 10, 10);
@@ -105,10 +106,12 @@ public class MenuPanel extends JPanel {
 
     private JButton createMenuButton(String text, String tooltip) {
         JButton btn = new JButton(text);
-        btn.setFont(new Font("微软雅黑", Font.BOLD, 20));
+        btn.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 20));
         btn.setForeground(Color.WHITE);
         btn.setBackground(new Color(60, 80, 120));
+        btn.setOpaque(true);
         btn.setFocusPainted(false);
+        btn.setBorderPainted(true);
         btn.setBorder(BorderFactory.createLineBorder(new Color(100, 150, 200), 2));
         btn.setToolTipText(tooltip);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));

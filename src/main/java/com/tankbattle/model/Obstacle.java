@@ -24,7 +24,7 @@ public class Obstacle {
     }
 
     public boolean isPassable() {
-        return type == ObstacleType.GRASS || type == ObstacleType.WATER;
+        return type == ObstacleType.GRASS;
     }
 
     public boolean blocksBullets() {

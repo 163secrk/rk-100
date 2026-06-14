@@ -27,8 +27,16 @@ public class MainFrame extends JFrame implements MenuPanel.MenuListener, GamePan
         setResizable(false);
         addKeyListener(this);
 
+        try {
+            UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         cardLayout = new CardLayout();
         mainPanel = new JPanel(cardLayout);
+        mainPanel.setBackground(new Color(20, 30, 50));
+        mainPanel.setOpaque(true);
 
         menuPanel = new MenuPanel(this);
         mapEditorPanel = new MapEditorPanel(this);
@@ -36,7 +44,7 @@ public class MainFrame extends JFrame implements MenuPanel.MenuListener, GamePan
         mainPanel.add(menuPanel, "MENU");
         mainPanel.add(mapEditorPanel, "EDITOR");
 
-        add(mainPanel);
+        setContentPane(mainPanel);
         pack();
         setSize(mapWidth + 20, mapHeight + 60);
         setLocationRelativeTo(null);
@@ -236,11 +244,14 @@ public class MainFrame extends JFrame implements MenuPanel.MenuListener, GamePan
     }
 
     @Override
+    public void onReturnToMenu() {
+        returnToMenu();
+    }
+
+    @Override
     public void keyPressed(KeyEvent e) {
         if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
-            if (gamePanel != null && gamePanel.isShowing()) {
-                returnToMenu();
-            } else if (mapEditorPanel != null && mapEditorPanel.isShowing()) {
+            if (mapEditorPanel != null && mapEditorPanel.isShowing()) {
                 cardLayout.show(mainPanel, "MENU");
             }
         }
