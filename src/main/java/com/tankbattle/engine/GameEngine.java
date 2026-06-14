@@ -93,18 +93,85 @@ public class GameEngine {
     private void updateEnemyAI() {
         for (Tank enemy : enemies) {
             if (!enemy.isAlive()) continue;
-            if (random.nextInt(100) < 2) {
-                Direction[] dirs = Direction.values();
-                enemy.setDirection(dirs[random.nextInt(dirs.length)]);
+
+            Tank targetPlayer = findNearestPlayer(enemy);
+            if (targetPlayer != null && random.nextInt(100) < 70) {
+                Direction chaseDir = getChaseDirection(enemy, targetPlayer);
+                if (chaseDir != null) {
+                    enemy.setDirection(chaseDir);
+                }
+            } else {
+                if (random.nextInt(100) < 10) {
+                    Direction[] dirs = Direction.values();
+                    enemy.setDirection(dirs[random.nextInt(dirs.length)]);
+                }
             }
+
             enemy.move(enemy.getDirection(), map);
-            if (random.nextInt(100) < 3) {
+
+            int shootChance = 3;
+            if (targetPlayer != null && isAlignedWithPlayer(enemy, targetPlayer)) {
+                shootChance = 15;
+            }
+            if (random.nextInt(100) < shootChance) {
                 Bullet bullet = enemy.shoot();
                 if (bullet != null) {
                     bullets.add(bullet);
                 }
             }
         }
+    }
+
+    private Tank findNearestPlayer(Tank enemy) {
+        Tank nearest = null;
+        double minDist = Double.MAX_VALUE;
+        for (Tank player : players) {
+            if (!player.isAlive()) continue;
+            double dist = getDistance(enemy, player);
+            if (dist < minDist) {
+                minDist = dist;
+                nearest = player;
+            }
+        }
+        return nearest;
+    }
+
+    private double getDistance(Tank a, Tank b) {
+        int dx = a.getX() - b.getX();
+        int dy = a.getY() - b.getY();
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    private Direction getChaseDirection(Tank enemy, Tank player) {
+        int dx = player.getX() - enemy.getX();
+        int dy = player.getY() - enemy.getY();
+
+        if (Math.abs(dx) > Math.abs(dy)) {
+            return dx > 0 ? Direction.RIGHT : Direction.LEFT;
+        } else {
+            return dy > 0 ? Direction.DOWN : Direction.UP;
+        }
+    }
+
+    private boolean isAlignedWithPlayer(Tank enemy, Tank player) {
+        Direction dir = enemy.getDirection();
+        int ex = enemy.getX() + Tank.SIZE / 2;
+        int ey = enemy.getY() + Tank.SIZE / 2;
+        int px = player.getX() + Tank.SIZE / 2;
+        int py = player.getY() + Tank.SIZE / 2;
+        int tolerance = Tank.SIZE / 2;
+
+        switch (dir) {
+            case UP:
+                return py < ey && Math.abs(ex - px) < tolerance;
+            case DOWN:
+                return py > ey && Math.abs(ex - px) < tolerance;
+            case LEFT:
+                return px < ex && Math.abs(ey - py) < tolerance;
+            case RIGHT:
+                return px > ex && Math.abs(ey - py) < tolerance;
+        }
+        return false;
     }
 
     private void spawnEnemies() {
@@ -136,9 +203,24 @@ public class GameEngine {
 
     private void checkCollisions() {
         List<Bullet> bulletsCopy = new ArrayList<>(bullets);
-        for (Bullet bullet : bulletsCopy) {
+        for (int i = 0; i < bulletsCopy.size(); i++) {
+            Bullet bullet = bulletsCopy.get(i);
             if (!bullet.isActive()) continue;
             Rectangle bulletRect = bullet.getBounds();
+
+            for (int j = i + 1; j < bulletsCopy.size(); j++) {
+                Bullet otherBullet = bulletsCopy.get(j);
+                if (!otherBullet.isActive()) continue;
+                if (bullet.isFromPlayer() == otherBullet.isFromPlayer()) continue;
+                Rectangle otherBulletRect = otherBullet.getBounds();
+                if (bulletRect.intersects(otherBulletRect)) {
+                    bullet.setActive(false);
+                    otherBullet.setActive(false);
+                    break;
+                }
+            }
+
+            if (!bullet.isActive()) continue;
 
             for (Obstacle obs : map.getObstacles()) {
                 if (obs.isDestroyed()) continue;
